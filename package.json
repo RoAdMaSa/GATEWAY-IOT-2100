@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "jsmodbus": "^4.0.10",
+    "modbus-serial": "^8.0.23",
+    "mqtt": "^5.15.0"
+  }
+}

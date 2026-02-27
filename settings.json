@@ -1,0 +1,86 @@
+{
+    "nodos": [
+        {
+            "name": "S7-300 Jarabe",
+            "ip": "192.168.0.102",
+            "protocol": "S7",
+            "rack": "0",
+            "slot": "1",
+            "tags": [
+                {
+                    "name": "TestInt1",
+                    "db": "10",
+                    "offset": "0",
+                    "type": "Int"
+                },
+                {
+                    "name": "TestInt2",
+                    "db": "10",
+                    "offset": "2",
+                    "type": "Int"
+                },
+                {
+                    "name": "TestInt3",
+                    "db": "10",
+                    "offset": "4",
+                    "type": "Int"
+                },
+                {
+                    "name": "TestReal1",
+                    "db": "10",
+                    "offset": "6",
+                    "type": "Real"
+                }
+            ]
+        },
+        {
+            "name": "Modbus Slave",
+            "ip": "127.0.0.1",
+            "protocol": "Modbus",
+            "rack": "0",
+            "slot": "1",
+            "tags": [
+                {
+                    "name": "TestIntMb1",
+                    "db": "0",
+                    "offset": "1",
+                    "type": "Int"
+                },
+                {
+                    "name": "TestIntMb2",
+                    "db": "1",
+                    "offset": "0",
+                    "type": "Int"
+                },
+                {
+                    "name": "TestIntMb3",
+                    "db": "0",
+                    "offset": "2",
+                    "type": "Int"
+                },
+                {
+                    "name": "TestRealMb1",
+                    "db": "0",
+                    "offset": "6",
+                    "type": "Real"
+                }
+            ]
+        },
+        {
+            "name": "MB Slave 2",
+            "ip": "127.0.0.1",
+            "protocol": "Modbus",
+            "rack": "0",
+            "slot": "1",
+            "tags": [
+                {
+                    "name": "",
+                    "func": "Holding Registers (4X)",
+                    "db": "0",
+                    "offset": "2",
+                    "type": "Int"
+                }
+            ]
+        }
+    ]
+}
