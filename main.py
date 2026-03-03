@@ -2,56 +2,55 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import threading
 import time
-import sqlite3  # Base de datos local incluida en Python
-import requests
+import datetime
 from config_manager import save_settings, load_settings
 from plc_drivers import CommunicationEngine
+from db_manager import DatabaseManager
 
 class MainApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Industrial Multi-Node Gateway - Rommel Adrian")
+        self.root.title("Industrial Multi-Node Gateway")
         self.root.geometry("1050x750")
         
         self.config = load_settings()
         self.engine = CommunicationEngine()
         self.running = False
-        
-        # Inicializamos la base de datos SQL antes de cargar la UI
-        self.init_db()
-        self.setup_ui()
-
-    def init_db(self):
-        """Inicializa el archivo de base de datos y la tabla de histórico."""
-        try:
-            conn = sqlite3.connect('gateway_history.db')
-            cursor = conn.cursor()
-            cursor.execute('''CREATE TABLE IF NOT EXISTS historico 
-                              (timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, 
-                               nodo TEXT, tag TEXT, valor TEXT)''')
-            conn.commit()
-            conn.close()
-        except Exception as e:
-            print(f"Error inicializando SQL: {e}")
-
-    def save_to_sql(self, nodo, tag, valor):
-        """Guarda una lectura individual en la base de datos."""
-        # No guardamos estados de error o reconexión para no ensuciar el histórico
-        if valor in ["Error", "Reconnecting...", "No Conn", "Err", "Err Read"]:
-            return
-            
-        try:
-            conn = sqlite3.connect('gateway_history.db')
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO historico (nodo, tag, valor) VALUES (?, ?, ?)", 
-                           (nodo, tag, str(valor)))
-            conn.commit()
-            conn.close()
-        except Exception as e:
-            print(f"Error al insertar en SQL: {e}")
+        self.db_manager = DatabaseManager(self.config['db_config'])
+        self.last_db_save = 0 # Para controlar el intervalo
 
     def setup_ui(self):
         # --- 1. CONFIGURACIÓN DE NODO ---
+        frame_db = ttk.LabelFrame(self.root, text="Configuración de Almacenamiento & Cloud", padding=10)
+        frame_db.pack(fill="x", padx=10, pady=5)
+
+        ttk.Label(frame_db, text="Tipo:").grid(row=0, column=0)
+        self.db_type = ttk.Combobox(frame_db, values=["SQLite", "MySQL"], width=10)
+        self.db_type.set(self.config['db_config']['type'])
+        self.db_type.grid(row=0, column=1)
+
+        ttk.Label(frame_db, text="Host:").grid(row=0, column=2)
+        self.db_host = ttk.Entry(frame_db, width=15)
+        self.db_host.insert(0, self.config['db_config'].get('host', 'localhost'))
+        self.db_host.grid(row=0, column=3)
+
+        ttk.Label(frame_db, text="User:").grid(row=0, column=4)
+        self.db_user = ttk.Entry(frame_db, width=10)
+        self.db_user.insert(0, self.config['db_config'].get('user', ''))
+        self.db_user.grid(row=0, column=5)
+
+        ttk.Label(frame_db, text="Pass:").grid(row=0, column=6)
+        self.db_pass = ttk.Entry(frame_db, show="*", width=10)
+        self.db_pass.insert(0, self.config['db_config'].get('pass', ''))
+        self.db_pass.grid(row=0, column=7)
+
+        ttk.Label(frame_db, text="Intervalo (s):").grid(row=0, column=8)
+        self.db_int = ttk.Entry(frame_db, width=5)
+        self.db_int.insert(0, self.config['db_config'].get('intervalo', 5))
+        self.db_int.grid(row=0, column=9)
+
+        ttk.Button(frame_db, text="Guardar Config DB", command=self.update_db_config).grid(row=0, column=10, padx=5)
+
         frame_node = ttk.LabelFrame(self.root, text="1. Configurar Dispositivo (Nodo)", padding=10)
         frame_node.pack(fill="x", padx=10, pady=5)
 
@@ -117,21 +116,18 @@ class MainApp:
         self.tree.pack(fill="both", expand=True, padx=10, pady=5)
         self.load_tree_data()
 
-    def send_to_cloud(self, data_json):
-        """Envía el paquete de datos al servidor del cliente."""
-        # IP de la PC donde corre el script de FastAPI
-        url = "http://127.0.0.1:8000/v1/telemetria" 
-        headers = {'Content-Type': 'application/json'}
-        
-        try:
-            # Enviamos el JSON. El timeout es vital para que no se quede colgado
-            response = requests.post(url, json=data_json, headers=headers, timeout=2)
-            if response.status_code == 200:
-                print("Nube: Datos enviados correctamente")
-            else:
-                print(f"Nube: Error del servidor {response.status_code}")
-        except Exception as e:
-            print(f"Nube: Error de conexión: {e}")
+    def update_db_config(self):
+        self.config['db_config'] = {
+            "type": self.db_type.get(),
+            "host": self.db_host.get(),
+            "user": self.db_user.get(),
+            "pass": self.db_pass.get(),
+            "db_name": "gateway_history", # o el nombre que elijas
+            "intervalo": int(self.db_int.get())
+        }
+        save_settings(self.config)
+        self.db_manager = DatabaseManager(self.config['db_config'])
+        messagebox.showinfo("Éxito", "Configuración de Base de Datos actualizada.")
 
     def toggle_node_fields(self, event=None):
         state = "normal" if self.node_proto.get() == "S7" else "disabled"
@@ -198,34 +194,24 @@ class MainApp:
         self.init_db()
         while self.running:
             # Preparamos el paquete JSON (Payload)
-            payload = {
-                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
-                "nodos": []
-            }
+            payload = {"timestamp": datetime.datetime.now().isoformat(), "nodos": []}
 
             for n in self.config['nodos']:
-                nodo_data = {"nombre": n['name'], "tags": []}
+                nodo_res = {"nombre": n['name'], "tags": []}
                 for t in n['tags']:
-                    # Leer valor real del PLC o Modbus
                     val = self.engine.read_tag(n['name'], n['protocol'], t)
-                    
-                    # 1. Actualizar la tabla visual
-                    iid = f"{n['name']}_{t['name']}"
-                    self.root.after(0, lambda i=iid, v=val: self.tree.set(i, "val", v))
-                    
-                    # 2. Guardar en tu SQL local (Respaldo/Backup)
-                    self.save_to_sql(n['name'], t['name'], val)
-                    
-                    # 3. Meter datos al paquete para la nube
-                    nodo_data["tags"].append({"tag": t['name'], "valor": val})
+                    self.root.after(0, lambda i=f"{n['name']}_{t['name']}", v=val: self.tree.set(i, "val", v))
+                    nodo_res["tags"].append({"tag": t['name'], "valor": val})
+                payload['nodos'].append(nodo_res)
+
+            # Control de guardado por tiempo
+            current_time = time.time()
+            if current_time - self.last_db_save >= self.config['db_config']['intervalo']:
+                threading.Thread(target=self.db_manager.save_data, args=(payload,), daemon=True).start()
+                threading.Thread(target=self.send_to_cloud, args=(payload,), daemon=True).start()
+                self.last_db_save = current_time
                 
-                payload["nodos"].append(nodo_data)
-            
-            # --- EL PASO CLAVE ---
-            # Lanzamos el envío en un hilo separado para que el ciclo siga sin esperar
-            threading.Thread(target=self.send_to_cloud, args=(payload,), daemon=True).start()
-            
-            time.sleep(1) # Pausa de 1 segundo antes de la siguiente lectura
+            time.sleep(1)
 
 if __name__ == "__main__":
     root = tk.Tk()

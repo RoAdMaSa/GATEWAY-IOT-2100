@@ -8,77 +8,214 @@
             "slot": "1",
             "tags": [
                 {
-                    "name": "TestInt1",
+                    "name": "TestReal1",
+                    "func": "Holding Registers (4X)",
                     "db": "10",
                     "offset": "0",
-                    "type": "Int"
+                    "type": "Real"
                 },
                 {
-                    "name": "TestInt2",
-                    "db": "10",
-                    "offset": "2",
-                    "type": "Int"
-                },
-                {
-                    "name": "TestInt3",
+                    "name": "TestReal2",
+                    "func": "Holding Registers (4X)",
                     "db": "10",
                     "offset": "4",
-                    "type": "Int"
-                },
-                {
-                    "name": "TestReal1",
-                    "db": "10",
-                    "offset": "6",
                     "type": "Real"
-                }
-            ]
-        },
-        {
-            "name": "Modbus Slave",
-            "ip": "127.0.0.1",
-            "protocol": "Modbus",
-            "rack": "0",
-            "slot": "1",
-            "tags": [
-                {
-                    "name": "TestIntMb1",
-                    "db": "0",
-                    "offset": "1",
-                    "type": "Int"
                 },
                 {
-                    "name": "TestIntMb2",
-                    "db": "1",
-                    "offset": "0",
-                    "type": "Int"
-                },
-                {
-                    "name": "TestIntMb3",
-                    "db": "0",
-                    "offset": "2",
-                    "type": "Int"
-                },
-                {
-                    "name": "TestRealMb1",
-                    "db": "0",
-                    "offset": "6",
-                    "type": "Real"
-                }
-            ]
-        },
-        {
-            "name": "MB Slave 2",
-            "ip": "127.0.0.1",
-            "protocol": "Modbus",
-            "rack": "0",
-            "slot": "1",
-            "tags": [
-                {
-                    "name": "",
+                    "name": "TestReal3",
                     "func": "Holding Registers (4X)",
-                    "db": "0",
-                    "offset": "2",
-                    "type": "Int"
+                    "db": "10",
+                    "offset": "8",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal4",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "12",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal5",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "16",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal6",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "20",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal7",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "24",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal8",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "28",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal9",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "32",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal10",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "36",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal11",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "40",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal12",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "44",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal13",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "48",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal14",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "52",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal15",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "56",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal16",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "60",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal17",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "64",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal18",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "68",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal19",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "72",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal20",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "76",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal21",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "80",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal22",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "84",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal23",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "88",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal24",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "92",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal25",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "96",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal26",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "100",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal27",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "104",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal28",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "108",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal29",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "112",
+                    "type": "Real"
+                },
+                {
+                    "name": "TestReal30",
+                    "func": "Holding Registers (4X)",
+                    "db": "10",
+                    "offset": "116",
+                    "type": "Real"
                 }
             ]
         }
