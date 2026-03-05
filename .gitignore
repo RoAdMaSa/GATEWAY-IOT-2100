@@ -1,0 +1,8 @@
+# Python
+__pycache__/
+
+# SQLite
+gateway_history.db
+
+#NodeJS
+node_modules/
