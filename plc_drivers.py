@@ -1,12 +1,30 @@
 import snap7
 from pyModbusTCP.client import ModbusClient
 from snap7.util import *
+from notifier import send_telegram_alert # <-- NUEVO
 import struct
+import logging
 
 class CommunicationEngine:
     def __init__(self):
         self.connections = {}
         self.node_configs = {}
+        self.last_status = {} # Para recordar si el nodo estaba vivo o muerto en el ciclo anterior
+    
+    def log_plc_status(self, nodo_name, ip, is_ok, error_msg=""):
+        current = self.last_status.get(nodo_name)
+        if current != is_ok:
+            self.last_status[nodo_name] = is_ok
+            if is_ok:
+                # Creamos el mensaje bonito de OK y lo enviamos
+                msg = f"✅ *RECONEXIÓN EXITOSA*\nPLC: {nodo_name}\nIP: {ip}"
+                logging.info(msg.replace('\n', ' - '))
+                send_telegram_alert(msg) 
+            else:
+                # Creamos el mensaje bonito de ERROR y lo enviamos
+                msg = f"🚨 *ALERTA DE DESCONEXIÓN*\nPLC: {nodo_name}\nIP: {ip}\nCausa: {error_msg}"
+                logging.warning(msg.replace('\n', ' - '))
+                send_telegram_alert(msg)
 
     def connect_all(self, nodos):
         self.node_configs = {n['name']: n for n in nodos}
@@ -17,7 +35,8 @@ class CommunicationEngine:
 
     def _attempt_connect(self, nodo):
         name = nodo['name']
-        
+        ip = nodo['ip']
+
         # 1. DESTRUCCIÓN TOTAL DEL CLIENTE VIEJO
         # Si existe un cliente previo, lo destruimos y liberamos la memoria
         if name in self.connections and self.connections[name] is not None:
@@ -44,45 +63,64 @@ class CommunicationEngine:
                 
                 # Si conectó con éxito, lo guardamos
                 self.connections[name] = client
+                self.log_plc_status(name, ip, True) # <--- AQUÍ: CONEXIÓN EXITOSA S7
                 return True
             else:
                 client = ModbusClient(host=nodo['ip'], port=502, auto_open=True, timeout=2)
                 if client.open():
                     self.connections[name] = client
+                    self.log_plc_status(name, ip, True) # <--- AQUÍ: CONEXIÓN EXITOSA MODBUS
                     return True
+                
+                self.log_plc_status(name, ip, False, "Modbus rechazó la conexión") # <--- AQUÍ: FALLO MODBUS
                 return False
         except:
+            self.log_plc_status(name, ip, False, "Cable desconectado o equipo apagado") # <--- AQUÍ: FALLO S7 O CABLE ROTO
             return False
 
     def read_tag(self, nodo_name, protocol, tag):
         client = self.connections.get(nodo_name)
+        ip = self.node_configs.get(nodo_name, {}).get('ip', 'Desconocida') # Obtenemos la IP para el log
         
-        # Si el cliente es None (porque está desconectado), reintentamos conectar
+        # Si el cliente es None, reintentamos conectar
         if not client:
             self._attempt_connect(self.node_configs.get(nodo_name, {}))
             return "Reconnecting..."
 
         try:
             dtype = tag.get('type', 'Int')
-            offset = int(tag['offset'])
+            offset_str = str(tag['offset']) # Lo tratamos como texto para poder buscar el punto
 
             if protocol == "S7":
+                # --- NUEVA LÓGICA DE BITS PARA BOOLEANOS ---
+                if dtype == "Bool" and '.' in offset_str:
+                    # Si escriben "8.2", lo partimos a la mitad
+                    partes = offset_str.split('.')
+                    byte_index = int(partes[0]) # 8
+                    bit_index = int(partes[1])  # 2
+                else:
+                    # Para Int, Real, DInt o si escriben solo "8"
+                    byte_index = int(float(offset_str))
+                    bit_index = 0
+                
                 size_map = {"Real": 4, "Int": 2, "Bool": 1, "DInt": 4, "Time": 4}
                 try:
-                    # Intentamos leer la memoria del PLC
-                    raw = client.db_read(int(tag['db']), offset, size_map[dtype])
+                    # Leemos la memoria usando el byte_index que calculamos
+                    raw = client.db_read(int(tag['db']), byte_index, size_map[dtype])
                 except Exception as e:
-                    # Si falla (ej. se quitó el cable), el socket se rompió.
-                    # Forzamos destrucción del cliente viejo para que reinicie
+                    self.log_plc_status(nodo_name, ip, False, "Se perdió la conexión durante la lectura S7") # <--- AQUÍ: CAÍDA EN VIVO S7
                     self._attempt_connect(self.node_configs[nodo_name])
                     return "Reconnecting..."
 
                 if dtype == "Real": return round(get_real(raw, 0), 2)
                 if dtype == "Int": return get_int(raw, 0)
-                if dtype == "Bool": return get_bool(raw, 0, 0)
+                if dtype == "Bool": return get_bool(raw, 0, bit_index) # <-- ¡AQUÍ INYECTAMOS EL BIT!
                 return get_dint(raw, 0)
             
             else: # MODBUS TCP
+                # Modbus no usa bits decimales, convertimos a entero normal
+                offset = int(float(offset_str)) 
+                
                 if not client.is_open:
                     client.open()
                 
@@ -101,7 +139,7 @@ class CommunicationEngine:
                     regs = client.read_holding_registers(offset, num)
 
                 if regs is None:
-                    # Si Modbus falla, forzamos reconexión destruyendo el cliente
+                    self.log_plc_status(nodo_name, ip, False, "Se perdió la conexión durante la lectura Modbus") # <--- AQUÍ: CAÍDA EN VIVO MODBUS
                     self._attempt_connect(self.node_configs[nodo_name])
                     return "Reconnecting..."
                 

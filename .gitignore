@@ -6,3 +6,6 @@ gateway_history.db
 
 #NodeJS
 node_modules/
+
+#Logs Errores
+gateway_eventos.log

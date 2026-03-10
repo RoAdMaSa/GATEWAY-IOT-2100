@@ -3,13 +3,23 @@ from tkinter import ttk, messagebox
 import threading
 import time
 import datetime #
-import sqlite3
 import requests
 import time
 import datetime
+import logging
+from notifier import send_telegram_alert
 from config_manager import save_settings, load_settings
 from plc_drivers import CommunicationEngine
 from db_manager import DatabaseManager
+from mqtt_manager import MqttSparkplugManager
+
+
+# Configuración global del archivo de Logs
+logging.basicConfig(
+    filename='gateway_eventos.log',
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
 class MainApp:
     def __init__(self, root):
@@ -26,6 +36,9 @@ class MainApp:
         self.last_db_save = 0
         
         self.setup_ui()
+        # --- AUTO-ARRANQUE DEL MONITOR ---
+        # Espera 1.5 segundos (1500 ms) para que cargue la interfaz y luego arranca solo
+        self.root.after(1500, self.toggle_all)
 
     def setup_ui(self):
         # --- 1. CONFIGURACIÓN DE ALMACENAMIENTO Y CLOUD ---
@@ -39,7 +52,7 @@ class MainApp:
         self.en_remote = tk.BooleanVar(value=self.config.get('en_remote', False))
         ttk.Checkbutton(frame_db, text="Activar BD Remota:", variable=self.en_remote).grid(row=0, column=1, padx=5, sticky="w")
 
-        self.db_type = ttk.Combobox(frame_db, values=["MySQL", "SQL Server"], width=8)
+        self.db_type = ttk.Combobox(frame_db, values=["MySQL", "SQL Server", "PostgreSQL"], width=8)
         self.db_type.set(self.config.get('db_config', {}).get('type', 'MySQL'))
         self.db_type.grid(row=0, column=2, padx=2)
 
@@ -101,6 +114,44 @@ class MainApp:
 
         ttk.Button(frame_node, text="Añadir Nodo", command=self.add_node).grid(row=0, column=9, padx=10)
 
+        # --- 1.5. CONFIGURACIÓN MQTT (SPARKPLUG B) ---
+        frame_mqtt = ttk.LabelFrame(self.root, text="1.5. Configuración MQTT (Sparkplug B)", padding=10)
+        frame_mqtt.pack(fill="x", padx=10, pady=5)
+
+        self.en_mqtt = tk.BooleanVar(value=self.config.get('en_mqtt', False))
+        ttk.Checkbutton(frame_mqtt, text="Activar Publicación MQTT", variable=self.en_mqtt).grid(row=0, column=0, padx=5, sticky="w")
+
+        ttk.Label(frame_mqtt, text="Broker:").grid(row=0, column=1, padx=2)
+        self.mqtt_broker = ttk.Entry(frame_mqtt, width=15)
+        self.mqtt_broker.insert(0, self.config.get('mqtt_config', {}).get('broker', 'broker.hivemq.com'))
+        self.mqtt_broker.grid(row=0, column=2, padx=2)
+
+        ttk.Label(frame_mqtt, text="Puerto:").grid(row=0, column=3, padx=2)
+        self.mqtt_port = ttk.Entry(frame_mqtt, width=5)
+        self.mqtt_port.insert(0, self.config.get('mqtt_config', {}).get('port', 1883))
+        self.mqtt_port.grid(row=0, column=4, padx=2)
+
+        ttk.Label(frame_mqtt, text="Group ID:").grid(row=0, column=5, padx=2)
+        self.mqtt_group = ttk.Entry(frame_mqtt, width=12)
+        self.mqtt_group.insert(0, self.config.get('mqtt_config', {}).get('group_id', 'SMI_PLASTICS'))
+        self.mqtt_group.grid(row=0, column=6, padx=2)
+
+        ttk.Label(frame_mqtt, text="Node ID:").grid(row=0, column=7, padx=2)
+        self.mqtt_node = ttk.Entry(frame_mqtt, width=12)
+        self.mqtt_node.insert(0, self.config.get('mqtt_config', {}).get('node_id', 'Gateway_L32'))
+        self.mqtt_node.grid(row=0, column=8, padx=2)
+
+        # Fila 1: Credenciales MQTT
+        ttk.Label(frame_mqtt, text="Usuario:").grid(row=1, column=1, padx=2, pady=5, sticky="e")
+        self.mqtt_user = ttk.Entry(frame_mqtt, width=15)
+        self.mqtt_user.insert(0, self.config.get('mqtt_config', {}).get('user', ''))
+        self.mqtt_user.grid(row=1, column=2, padx=2, pady=5)
+
+        ttk.Label(frame_mqtt, text="Contraseña:").grid(row=1, column=3, padx=2, pady=5, sticky="e")
+        self.mqtt_pass = ttk.Entry(frame_mqtt, show="*", width=15) # show="*" oculta la clave
+        self.mqtt_pass.insert(0, self.config.get('mqtt_config', {}).get('pass', ''))
+        self.mqtt_pass.grid(row=1, column=4, padx=2, pady=5)
+
         # --- 3. CONFIGURACIÓN DE VARIABLES (TAGS) ---
         frame_tag = ttk.LabelFrame(self.root, text="3. Configurar Variables por Nodo", padding=10)
         frame_tag.pack(fill="x", padx=10, pady=5)
@@ -152,6 +203,17 @@ class MainApp:
             "db_name": "gateway_history",
             "intervalo": int(self.db_int.get())
         }
+
+        self.config['en_mqtt'] = self.en_mqtt.get()
+        self.config['mqtt_config'] = {
+            "broker": self.mqtt_broker.get(),
+            "port": int(self.mqtt_port.get()),
+            "group_id": self.mqtt_group.get(),
+            "node_id": self.mqtt_node.get(),
+            "user": self.mqtt_user.get(), 
+            "pass": self.mqtt_pass.get()  
+        }
+
         # --- AQUÍ GUARDAMOS EL ID DE PLANTA Y LA URL ---
         self.config['cloud_url'] = self.cloud_url.get()
         self.config['plant_id'] = self.plant_id.get().upper().strip()
@@ -299,11 +361,28 @@ class MainApp:
             self.engine.connect_all(self.config['nodos'])
             self.running = True
             self.btn_main.config(text="DETENER MONITOR")
+            
+            if self.config.get('en_mqtt', False):
+                self.mqtt_manager = MqttSparkplugManager(self.config.get('mqtt_config', {}))
+                self.mqtt_manager.connect()
+
+            # --- ENVÍO DE ALERTA DE INICIO ---
+            planta = self.config.get('plant_id', 'SMI').upper()
+            linea = self.config.get('line_id', 'L32').upper()
+            send_telegram_alert(f"🟢 *SMI GATEWAY INICIADO*\nPlanta: {planta} | Línea: {linea}\nEl sistema ha arrancado y el monitoreo de los PLC ha comenzado.")
+
             threading.Thread(target=self.main_loop, daemon=True).start()
         else:
             self.running = False
             self.engine.disconnect_all()
             self.btn_main.config(text="INICIAR MONITOR")
+
+            if hasattr(self, 'mqtt_manager'):
+                self.mqtt_manager.disconnect()
+
+            # --- ENVÍO DE ALERTA DE PARADA ---
+            send_telegram_alert("🔴 *SMI GATEWAY DETENIDO*\nEl usuario ha detenido el monitoreo manualmente.")
+            # ---------------------------------
 
     def main_loop(self):
         while self.running:
@@ -349,6 +428,10 @@ class MainApp:
                 url_actual = self.config.get('cloud_url', '')
                 if url_actual != "":
                     threading.Thread(target=self.send_to_cloud, args=(payload,), daemon=True).start()
+
+                # 4. ¿Marcó activar MQTT Sparkplug B?
+                if self.config.get('en_mqtt', False) and hasattr(self, 'mqtt_manager'):
+                    self.mqtt_manager.publish_ddata(payload)    
                 
                 self.last_db_save = curr
             time.sleep(1)

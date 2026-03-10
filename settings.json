@@ -153,28 +153,29 @@
                     "db": "13",
                     "offset": "6",
                     "type": "Int"
-                },
-                {
-                    "name": "V022",
-                    "func": "Holding Registers (4X)",
-                    "db": "12",
-                    "offset": "44",
-                    "type": "DInt"
                 }
             ]
+        },
+        {
+            "name": "Modbus1",
+            "ip": "127.0.0.1",
+            "protocol": "Modbus",
+            "rack": "0",
+            "slot": "1",
+            "tags": []
         }
     ],
     "db_config": {
-        "type": "SQLite",
-        "host": "localhost",
-        "user": "",
-        "pass": "",
+        "type": "PostgreSQL",
+        "host": "ep-young-hall-aeacod05-pooler.c-2.us-east-2.aws.neon.tech",
+        "user": "neondb_owner",
+        "pass": "npg_ViWkKNe1ZLa5",
         "db_name": "gateway_history",
-        "intervalo": 60
+        "intervalo": 10
     },
     "cloud_url": "https://server-py-8ijq.onrender.com/v1/telemetria",
     "plant_id": "SMI",
     "line_id": "L32",
     "en_local": true,
-    "en_remote": false
+    "en_remote": true
 }
