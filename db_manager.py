@@ -15,8 +15,8 @@ class DatabaseManager:
         if current == is_ok: 
             self.last_status[db_type] = is_ok
             if is_ok:
-                logging.info(f"[OK BD] Conexión recuperada con Base de Datos {db_type.upper()}")
-                print(f"[OK BD] Conexión recuperada con {db_type.upper()}")
+                logging.info(f"[OK BD] Datos insertados Correctamente {db_type.upper()}")
+                print(f"[OK BD] Datos insertados Correctamente {db_type.upper()}")
             else:
                 logging.error(f"[ERROR BD] Fallo en Base de Datos {db_type.upper()}: {error_msg}")
                 print(f"[ERROR BD] Fallo en {db_type.upper()}: {error_msg}")

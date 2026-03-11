@@ -1,74 +1,117 @@
 import logging
+import ssl
+import json # <-- NUEVO
+import paho.mqtt.client as mqtt_client
 from mqtt_spb_wrapper import MqttSpbEntityDevice
+
+# --- MONKEY PATCH DE SEGURIDAD ---
+original_connect = mqtt_client.Client.connect
+
+def secure_connect(self, *args, **kwargs):
+    port = kwargs.get('port', args[1] if len(args) > 1 else 1883)
+    if port == 8883:
+        try:
+            self.tls_set(cert_reqs=ssl.CERT_NONE)
+            self.tls_insecure_set(True)
+        except Exception:
+            pass 
+    return original_connect(self, *args, **kwargs)
+
+mqtt_client.Client.connect = secure_connect
+# ---------------------------------
 
 class MqttSparkplugManager:
     def __init__(self, config):
         self.config = config
-        self.group_id = self.config.get('group_id', 'SMI_PLASTICS')
-        self.edge_node_id = self.config.get('node_id', 'Gateway_L32')
+        self.group_id = self.config.get('group_id', 'SMI')
+        self.edge_node_id = self.config.get('node_id', 'Linea32')
         self.broker = self.config.get('broker', 'localhost')
-        self.port = int(self.config.get('port', 1883))
-
-        # Atrapamos credenciales (si están vacías, asume que no hay autenticación)
+        self.port = int(self.config.get('port', 8883))
+        
         self.user = self.config.get('user', '')
         self.password = self.config.get('pass', '')
+        self.client_id = self.config.get('client_id', 'gateway_smi') 
         
-        # Aquí guardaremos los objetos Sparkplug de cada PLC
         self.devices = {} 
+        
+        # --- NUEVO: CLIENTE PARA TIEMPO REAL (JSON) ---
+        # Le añadimos "_RT" al Client ID para que EMQX no lo confunda con el de Sparkplug
+        self.rt_client = mqtt_client.Client(self.client_id + "_RT")
+        if self.user:
+            self.rt_client.username_pw_set(self.user, self.password)
+        # ----------------------------------------------
 
     def connect(self):
-        # La conexión se hará dinámicamente cuando lleguen los datos del PLC
-        print("MQTT Sparkplug B: Inicializado. Esperando datos...")
+        print("MQTT: Inicializando clientes...")
+        # Conectamos el cliente de tiempo real en segundo plano
+        if self.port == 8883:
+            self.rt_client.tls_set(cert_reqs=ssl.CERT_NONE)
+            self.rt_client.tls_insecure_set(True)
+        try:
+            self.rt_client.connect_async(self.broker, self.port)
+            self.rt_client.loop_start()
+            logging.info("[OK MQTT] Cliente JSON en tiempo real conectado.")
+        except Exception as e:
+            logging.error(f"[ERROR MQTT] No se pudo conectar cliente RT: {e}")
 
     def disconnect(self):
+        self.rt_client.loop_stop()
+        self.rt_client.disconnect()
         for dev in self.devices.values():
             dev.disconnect()
 
+    def publish_realtime(self, payload):
+        """ Envía los datos cada segundo en formato JSON legible para la Web """
+        for nodo in payload['nodos']:
+            # Tópico limpio: SMI/REALTIME/SOPLADO/L32
+            device_id = nodo['nombre'].replace(" ", "_").upper()
+            topic = f"{self.group_id}/REALTIME/{self.edge_node_id}/{device_id}"
+            
+            # Formateamos solo las variables válidas
+            datos = {tag['tag']: tag['valor'] for tag in nodo['tags'] if not (isinstance(tag['valor'], str) and tag['valor'] in ["Error", "Err", "Reconnecting..."])}
+            
+            if datos:
+                try:
+                    self.rt_client.publish(topic, json.dumps(datos), qos=0)
+                except Exception:
+                    pass
+
     def publish_ddata(self, payload):
+        """ Envía los datos comprimidos Sparkplug B para la Base de Datos """
         for nodo in payload['nodos']:
             device_id = nodo['nombre'].replace(" ", "_").upper()
             
-            # 1. ¿Es la primera vez que leemos este PLC? 
-            # Si es así, creamos la entidad y enviamos su "Certificado de Nacimiento" (DBIRTH)
             if device_id not in self.devices:
                 try:
-                    # Estructura obligatoria: Group ID -> Edge Node ID -> Device ID
                     dev = MqttSpbEntityDevice(self.group_id, self.edge_node_id, device_id)
-                    
-                    # Sparkplug EXIGE declarar las variables y sus tipos en el nacimiento
                     for tag in nodo['tags']:
-                        dev.data.set_value(tag['tag'], 0) # Inicializamos en 0
-                     # --- AQUÍ PASAMOS LAS CREDENCIALES AL BROKER ---
-                    # Si el usuario o pass están vacíos, pasamos None para evitar errores de autenticación
+                        val = tag['valor']
+                        if isinstance(val, str) and val in ["Error", "Err", "Reconnecting..."]:
+                            dev.data.set_value(tag['tag'], 0) 
+                        else:
+                            dev.data.set_value(tag['tag'], val) 
+                        
                     usr = self.user if self.user != "" else None
                     pwd = self.password if self.password != "" else None
                     
                     dev.connect(self.broker, self.port, usr, pwd)
-                    
                     self.devices[device_id] = dev
-                    
-                    logging.info(f"[OK MQTT] Dispositivo Sparkplug B creado y conectado: {device_id}")
-                except Exception as e:
-                    logging.error(f"[ERROR MQTT] Fallo al crear dispositivo {device_id}: {e}")
+                    print(f"MQTT: Sparkplug B conectado a {device_id}")
+                except Exception:
                     continue
 
             dev = self.devices[device_id]
-            
             if not dev.is_connected():
                 continue
 
-            # 2. Preparamos los datos vivos (DDATA)
             has_data = False
             for tag in nodo['tags']:
                 val = tag['valor']
-                # Filtramos errores de lectura del PLC para no mandar basura a la nube
                 if isinstance(val, str) and val in ["Error", "Err", "Reconnecting..."]:
                     continue
-                
-                # Actualizamos el valor en la memoria del wrapper
                 dev.data.set_value(tag['tag'], val)
                 has_data = True
             
-            # 3. Disparamos el paquete comprimido a la nube
             if has_data:
                 dev.publish_data()
+                print("MQTT: DDATA (Sparkplug) enviado para PostgreSQL")

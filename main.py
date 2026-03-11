@@ -82,12 +82,12 @@ class MainApp:
         self.cloud_url.insert(0, self.config.get('cloud_url', 'https://server-py-8ijq.onrender.com/v1/telemetria'))
         self.cloud_url.grid(row=1, column=1, columnspan=3, sticky="we", padx=5)
 
-        ttk.Label(frame_db, text="Planta:").grid(row=1, column=4, sticky="e")
+        ttk.Label(frame_db, text="Empresa:").grid(row=1, column=4, sticky="e")
         self.plant_id = ttk.Entry(frame_db, width=6)
         self.plant_id.insert(0, self.config.get('plant_id', 'SMI'))
         self.plant_id.grid(row=1, column=5, padx=2)
 
-        ttk.Label(frame_db, text="Línea:").grid(row=1, column=6, sticky="e")
+        ttk.Label(frame_db, text="Planta:").grid(row=1, column=6, sticky="e")
         self.line_id = ttk.Entry(frame_db, width=6)
         self.line_id.insert(0, self.config.get('line_id', 'L32'))
         self.line_id.grid(row=1, column=7, padx=2)
@@ -118,39 +118,45 @@ class MainApp:
         frame_mqtt = ttk.LabelFrame(self.root, text="1.5. Configuración MQTT (Sparkplug B)", padding=10)
         frame_mqtt.pack(fill="x", padx=10, pady=5)
 
+        # Fila 0
         self.en_mqtt = tk.BooleanVar(value=self.config.get('en_mqtt', False))
-        ttk.Checkbutton(frame_mqtt, text="Activar Publicación MQTT", variable=self.en_mqtt).grid(row=0, column=0, padx=5, sticky="w")
+        ttk.Checkbutton(frame_mqtt, text="Activar", variable=self.en_mqtt).grid(row=0, column=0, padx=5, sticky="w")
 
         ttk.Label(frame_mqtt, text="Broker:").grid(row=0, column=1, padx=2)
-        self.mqtt_broker = ttk.Entry(frame_mqtt, width=15)
-        self.mqtt_broker.insert(0, self.config.get('mqtt_config', {}).get('broker', 'broker.hivemq.com'))
+        self.mqtt_broker = ttk.Entry(frame_mqtt, width=20)
+        self.mqtt_broker.insert(0, self.config.get('mqtt_config', {}).get('broker', 'qd6acf83.ala.us-east-1.emqxsel.com'))
         self.mqtt_broker.grid(row=0, column=2, padx=2)
 
         ttk.Label(frame_mqtt, text="Puerto:").grid(row=0, column=3, padx=2)
         self.mqtt_port = ttk.Entry(frame_mqtt, width=5)
-        self.mqtt_port.insert(0, self.config.get('mqtt_config', {}).get('port', 1883))
+        self.mqtt_port.insert(0, self.config.get('mqtt_config', {}).get('port', 8883))
         self.mqtt_port.grid(row=0, column=4, padx=2)
 
         ttk.Label(frame_mqtt, text="Group ID:").grid(row=0, column=5, padx=2)
-        self.mqtt_group = ttk.Entry(frame_mqtt, width=12)
-        self.mqtt_group.insert(0, self.config.get('mqtt_config', {}).get('group_id', 'SMI_PLASTICS'))
+        self.mqtt_group = ttk.Entry(frame_mqtt, width=10)
+        self.mqtt_group.insert(0, self.config.get('mqtt_config', {}).get('group_id', 'SMI'))
         self.mqtt_group.grid(row=0, column=6, padx=2)
 
         ttk.Label(frame_mqtt, text="Node ID:").grid(row=0, column=7, padx=2)
-        self.mqtt_node = ttk.Entry(frame_mqtt, width=12)
-        self.mqtt_node.insert(0, self.config.get('mqtt_config', {}).get('node_id', 'Gateway_L32'))
+        self.mqtt_node = ttk.Entry(frame_mqtt, width=10)
+        self.mqtt_node.insert(0, self.config.get('mqtt_config', {}).get('node_id', 'Linea32'))
         self.mqtt_node.grid(row=0, column=8, padx=2)
 
-        # Fila 1: Credenciales MQTT
-        ttk.Label(frame_mqtt, text="Usuario:").grid(row=1, column=1, padx=2, pady=5, sticky="e")
-        self.mqtt_user = ttk.Entry(frame_mqtt, width=15)
-        self.mqtt_user.insert(0, self.config.get('mqtt_config', {}).get('user', ''))
-        self.mqtt_user.grid(row=1, column=2, padx=2, pady=5)
+        # Fila 1: Credenciales y Client ID
+        ttk.Label(frame_mqtt, text="Client ID:").grid(row=1, column=1, padx=2, pady=5, sticky="e")
+        self.mqtt_client_id = ttk.Entry(frame_mqtt, width=20)
+        self.mqtt_client_id.insert(0, self.config.get('mqtt_config', {}).get('client_id', 'mqttx_a5af15c4'))
+        self.mqtt_client_id.grid(row=1, column=2, padx=2, pady=5)
 
-        ttk.Label(frame_mqtt, text="Contraseña:").grid(row=1, column=3, padx=2, pady=5, sticky="e")
-        self.mqtt_pass = ttk.Entry(frame_mqtt, show="*", width=15) # show="*" oculta la clave
+        ttk.Label(frame_mqtt, text="Usuario:").grid(row=1, column=3, padx=2, pady=5, sticky="e")
+        self.mqtt_user = ttk.Entry(frame_mqtt, width=15)
+        self.mqtt_user.insert(0, self.config.get('mqtt_config', {}).get('user', 'julio'))
+        self.mqtt_user.grid(row=1, column=4, padx=2, pady=5)
+
+        ttk.Label(frame_mqtt, text="Contraseña:").grid(row=1, column=5, padx=2, pady=5, sticky="e")
+        self.mqtt_pass = ttk.Entry(frame_mqtt, show="*", width=15)
         self.mqtt_pass.insert(0, self.config.get('mqtt_config', {}).get('pass', ''))
-        self.mqtt_pass.grid(row=1, column=4, padx=2, pady=5)
+        self.mqtt_pass.grid(row=1, column=6, padx=2, pady=5)
 
         # --- 3. CONFIGURACIÓN DE VARIABLES (TAGS) ---
         frame_tag = ttk.LabelFrame(self.root, text="3. Configurar Variables por Nodo", padding=10)
@@ -210,6 +216,7 @@ class MainApp:
             "port": int(self.mqtt_port.get()),
             "group_id": self.mqtt_group.get(),
             "node_id": self.mqtt_node.get(),
+            "client_id": self.mqtt_client_id.get(),
             "user": self.mqtt_user.get(), 
             "pass": self.mqtt_pass.get()  
         }
@@ -389,13 +396,13 @@ class MainApp:
             payload = {"timestamp": datetime.datetime.now().isoformat(), "nodos": []}
 
             # --- 1. OBTENER EL ID DE LA PLANTA ---
-            planta = self.config.get('plant_id', 'SMI').upper()
-            linea = self.config.get('line_id', 'L01').upper()
+            planta = self.config.get('plant_id', 'SMI').upper() #--- SE USABA PARA ARMAR EL COMANDO HTTPS, revisar si se vuelve a usar
+            linea = self.config.get('line_id', 'L01').upper()  #--- SE USABA PARA ARMAR EL COMANDO HTTPS, revisar si se vuelve a usar
 
             for n in self.config['nodos']:
                 nodo_data = {"nombre": n['name'], "tags": []}
 
-                # --- 2. LIMPIAR EL NOMBRE DEL NODO (Espacios a guiones) ---
+                # --- 2. LIMPIAR EL NOMBRE DEL NODO (Espacios a guiones) --- SE USABA PARA ARMAR EL COMANDO HTTPS, revisar si se vuelve a usar
                 nodo_limpio = n['name'].replace(" ", "_").upper()
 
                 for t in n['tags']:
@@ -405,22 +412,29 @@ class MainApp:
                         val = self.format_time_ms(val)
                         
                     self.root.after(0, lambda i=f"{n['name']}_{t['name']}", v=val: self.tree.set(i, "val", v))
-                    # --- 3. CREAR EL TAG FORMATEADO (Ej: SMI_SOPLADO_PRESION) ---
+                    # --- 3. CREAR EL TAG CORTO (Para usar Diccionario en Nube) ---
                     var_limpia = t['name'].replace(" ", "_").upper()
-                    tag_formateado = f"{planta}_{linea}_{nodo_limpio}_{var_limpia}"
                     
-                    # Lo guardamos en el JSON
-                    nodo_data["tags"].append({"tag": tag_formateado, "valor": val})
+                    # Guardamos SOLO el nombre de la variable (Ej: V001)
+                    nodo_data["tags"].append({"tag": var_limpia, "valor": val})
                 payload["nodos"].append(nodo_data)
             
-            # Guardado según intervalo configurado
+            # =========================================================
+            # FLUJO CALIENTE (TIEMPO REAL - Se ejecuta cada ~1 seg)
+            # =========================================================
+            if self.config.get('en_mqtt', False) and hasattr(self, 'mqtt_manager'):
+                threading.Thread(target=self.mqtt_manager.publish_realtime, args=(payload,), daemon=True).start()
+
+            # =========================================================
+            # FLUJO FRÍO (INTERVALO - Se ejecuta cada X segundos)
+            # =========================================================
             curr = time.time()
             if curr - self.last_db_save >= int(self.config['db_config'].get('intervalo', 5)):
                 # 1. ¿Marcó guardar en la Mini PC?
                 if self.config.get('en_local', True):
                     threading.Thread(target=self.db_manager.save_local_sqlite, args=(payload,), daemon=True).start()
                 
-                # 2. ¿Marcó activar Base de Datos Remota (MySQL)?
+                # 2. ¿Marcó activar Base de Datos Remota (MySQL / SQL Server / PostgreSQL)?
                 if self.config.get('en_remote', False):
                     threading.Thread(target=self.db_manager.save_remote_db, args=(payload,), daemon=True).start()
                 
@@ -429,11 +443,12 @@ class MainApp:
                 if url_actual != "":
                     threading.Thread(target=self.send_to_cloud, args=(payload,), daemon=True).start()
 
-                # 4. ¿Marcó activar MQTT Sparkplug B?
+                # 4. ¿Marcó activar MQTT Sparkplug B? (Envío comprimido a la BD)
                 if self.config.get('en_mqtt', False) and hasattr(self, 'mqtt_manager'):
-                    self.mqtt_manager.publish_ddata(payload)    
+                    threading.Thread(target=self.mqtt_manager.publish_ddata, args=(payload,), daemon=True).start()    
                 
                 self.last_db_save = curr
+            
             time.sleep(1)
 
 if __name__ == "__main__":

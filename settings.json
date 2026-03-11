@@ -1,7 +1,7 @@
 {
     "nodos": [
         {
-            "name": "SOPLADORA",
+            "name": "L32",
             "ip": "192.168.0.102",
             "protocol": "S7",
             "rack": "0",
@@ -155,14 +155,6 @@
                     "type": "Int"
                 }
             ]
-        },
-        {
-            "name": "Modbus1",
-            "ip": "127.0.0.1",
-            "protocol": "Modbus",
-            "rack": "0",
-            "slot": "1",
-            "tags": []
         }
     ],
     "db_config": {
@@ -173,9 +165,19 @@
         "db_name": "gateway_history",
         "intervalo": 10
     },
-    "cloud_url": "https://server-py-8ijq.onrender.com/v1/telemetria",
+    "cloud_url": "",
     "plant_id": "SMI",
-    "line_id": "L32",
+    "line_id": "SOPLADO",
     "en_local": true,
-    "en_remote": true
+    "en_remote": false,
+    "en_mqtt": true,
+    "mqtt_config": {
+        "broker": "qd6acf83.ala.us-east-1.emqxsl.com",
+        "port": 8883,
+        "group_id": "SMI",
+        "node_id": "SOPLADO",
+        "client_id": "mqttx_a5af1549",
+        "user": "smi-gateway",
+        "pass": "mzw%&9pN04PZ*7*ufh0^"
+    }
 }
