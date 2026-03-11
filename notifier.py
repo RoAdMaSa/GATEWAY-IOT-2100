@@ -3,8 +3,8 @@ import threading
 import logging
 
 # --- REEMPLAZA ESTOS VALORES CON LOS DE TU FASE 1 ---
-TELEGRAM_TOKEN = "8649943219:AAG5wBBa-AaYTfUKJtm-1htsIudzi1KOjTQ"
-CHAT_ID = "5132195553"
+TELEGRAM_TOKEN = ""
+CHAT_ID = ""
 
 def send_telegram_alert(mensaje):
     """
